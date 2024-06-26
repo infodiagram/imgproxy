@@ -1,37 +1,22 @@
-ARG BASE_IMAGE_VERSION="v3.10.0"
+ARG BASE_IMAGE_VERSION="v3.9.1"
 
-FROM --platform=${BUILDPLATFORM} darthsim/imgproxy-base:${BASE_IMAGE_VERSION} as base-native
+FROM darthsim/imgproxy-base:${BASE_IMAGE_VERSION}
 
-FROM darthsim/imgproxy-base:${BASE_IMAGE_VERSION} as build
-
-ARG BUILDARCH
 ARG TARGETARCH
-
-RUN dpkg --add-architecture ${BUILDARCH} \
-  && apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libstdc++6:${BUILDARCH}
-
-# This is pretty dirty hack. Building imgproxy under Qemu is pretty slow.
-# So we install Go binary native for the BUILDARCH.
-RUN rm -rf /usr/local/go
-COPY --from=base-native /usr/local/go /usr/local/go
-
-ENV CGO_ENABLED=1
-ENV GOOS=linux
-ENV GOARCH=$TARGETARCH
+ARG BUILDARCH
 
 COPY . .
-RUN bash -c 'go build -v -ldflags "-s -w" -o /usr/local/bin/imgproxy'
+RUN docker/build.sh
 
 # ==================================================================================================
 # Final image
 
-FROM ubuntu:noble
+FROM ubuntu:mantic
 LABEL maintainer="Sergey Alexandrovich <darthsim@gmail.com>"
 
 RUN apt-get update \
   && apt-get upgrade -y \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  && apt-get install -y --no-install-recommends \
     bash \
     ca-certificates \
     libstdc++6 \
@@ -46,8 +31,8 @@ RUN apt-get update \
   && ln -s /usr/lib/$(uname -m)-linux-gnu/libtcmalloc_minimal.so.4 /usr/local/lib/libtcmalloc_minimal.so \
   && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /usr/local/bin/imgproxy /usr/local/bin/
-COPY --from=build /usr/local/lib /usr/local/lib
+COPY --from=0 /usr/local/bin/imgproxy /usr/local/bin/
+COPY --from=0 /usr/local/lib /usr/local/lib
 
 COPY docker/entrypoint.sh /usr/local/bin/
 
@@ -72,7 +57,9 @@ RUN groupadd -r imgproxy \
   && chmod 777 /var/cache/fontconfig
 USER 999
 
+ENV PORT 8080
+ENV IMGPROXY_BIND :$PORT
 ENTRYPOINT [ "entrypoint.sh" ]
 CMD ["imgproxy"]
 
-EXPOSE 8080
+EXPOSE $PORT
