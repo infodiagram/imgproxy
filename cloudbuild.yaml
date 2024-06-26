@@ -19,6 +19,7 @@ steps:
       'build',
       '--tag', '${_IMAGE}:${SHORT_SHA}',
       '--tag', '${_IMAGE}:latest',
+      '--platform', 'linux/amd64',
       '-f', 'docker/Dockerfile',
       '.'
     ]
