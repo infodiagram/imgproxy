@@ -5,6 +5,7 @@ options:
   dynamic_substitutions: true
   substitutionOption: ALLOW_LOOSE
   machineType: 'N1_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
 
 
 steps:
